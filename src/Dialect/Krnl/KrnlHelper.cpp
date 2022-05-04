@@ -192,7 +192,7 @@ void KrnlIterateOperandPack::pushIndexExprBound(IndexExpr expr, bool isLb) {
 }
 
 void KrnlIterateOperandPack::pushIndexExprsBound(
-    SmallVectorImpl<IndexExpr> &exprVector) {
+  SmallVectorImpl<IndexExpr> &exprVector) {
   SmallVector<AffineExpr, 4> AEVector;
   // Important to get the affine expressions before getting the num
   // Dim/Symbols as it may add some dims and symbol itself.
@@ -390,7 +390,7 @@ void generateIndexMap(
     return;
   if (transposeInner2) {
     map[size - 2] = size - 1;
-    map[size - 1] = size - 2;
+    map[size - 1] = size - 2;  
   }
 }
 
@@ -407,6 +407,58 @@ bool isKrnlGlobalConstant(Value result) {
     return false;
 
   return true;
+}
+
+// ----------- krnl cim helper functions-------------------------------
+static void appendMangledType(llvm::raw_string_ostream &ss, Type t) {
+  if (auto memref = t.dyn_cast<MemRefType>()) {
+    ss << "view";
+    for (auto size : memref.getShape())
+      if (size < 0)
+        ss << "sx";
+      else
+        ss << size << "x";
+    appendMangledType(ss, memref.getElementType());
+  } else if (t.isSignlessIntOrIndexOrFloat()) {
+    ss << t;
+  } else {
+    llvm_unreachable("Invalid type for cim library name mangling");
+  }
+}
+
+std::string generateLibraryCallName(Operation *op) {
+  std::string name(op->getName().getStringRef().str());
+  name.reserve(128);
+  std::replace(name.begin(), name.end(), '.', '_');
+  llvm::raw_string_ostream ss(name);
+
+  ss << "_";
+  auto types = op->getOperandTypes();
+  interleave(
+      types.begin(), types.end(), [&](Type t) { appendMangledType(ss, t); },
+      [&]() { ss << "_"; });
+
+  ss << "_";
+  auto attrs = op->getAttrs();
+  interleave(
+      attrs.begin(), attrs.end(),
+      [&](NamedAttribute attr) {
+        ss << std::get<1>(attr).cast<StringAttr>().getValue();
+      },
+      [&]() { ss << "_"; });
+
+  return ss.str();
+}
+
+void appendOperandPrecision(llvm::raw_string_ostream &ss, Type t) {
+  if (auto memref = t.dyn_cast<MemRefType>()) {
+    appendOperandPrecision(ss, memref.getElementType());
+  } else if (t.isSignlessIntOrIndexOrFloat()) {
+    ss << "_";
+    ss << t;
+  } else {
+    llvm_unreachable("Invalid type for cim library precision mangling");
+  }
 }
 
 } // namespace krnl

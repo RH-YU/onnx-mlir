@@ -284,5 +284,14 @@ void generateIndexMap(
 /// Check whether a value is produced by a dense KrnlGlobalOp.
 bool isKrnlGlobalConstant(mlir::Value result);
 
+
+// ---------------------- Krnl CIM helper functions------------------------- // 
+
+std::string generateLibraryCallName(Operation *op);
+
+/// Appends element type to library call name based on an operand type.
+void appendOperandPrecision(llvm::raw_string_ostream &ss, Type t);
+
+
 } // namespace krnl
 } // namespace onnx_mlir

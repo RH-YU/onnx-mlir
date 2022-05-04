@@ -176,4 +176,9 @@ struct MultiDialectBuilder<AffineBuilderKrnlMem, Ts...>
   AffineBuilderKrnlMem affineKMem;
 };
 
+void cimmatmul(mlir::Valure tile_id,mlir::Value A, mlir::Value B) const;
+
+void writematrix( mlir::Valure tile_id,mlir::Value A) const;
+
+
 } // namespace onnx_mlir

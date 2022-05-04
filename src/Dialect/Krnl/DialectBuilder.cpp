@@ -241,4 +241,12 @@ void KrnlBuilder::printf(StringRef msg, Value input, Type inputType) const {
   b.create<KrnlPrintOp>(loc, newFormat, input);
 }
 
+void KrnlBuilder::cimmatmul(value tile_id, value A, value B) const {
+  b.create<KrnlCIMMatMulOp>(loc, tile_id, A, B);
+}
+
+void KrnlBuilder::writematrix(value tile_id, value A) const {
+  b.create<KrnlWWriteMatrixOp>(loc, tile_id, A);
+}
+
 } // namespace onnx_mlir

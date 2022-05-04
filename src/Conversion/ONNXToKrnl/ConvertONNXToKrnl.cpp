@@ -69,8 +69,9 @@ void populateONNXToKrnlConversionPattern(RewritePatternSet &patterns,
   populateLoweringONNXReductionOpPattern(patterns, typeConverter, ctx);
   populateLoweringONNXSoftmaxOpPattern(patterns, typeConverter, ctx);
   populateLoweringONNXTopKOpPattern(patterns, typeConverter, ctx);
-  populateLoweringONNXMatMulOpPattern(
-      patterns, typeConverter, ctx, enableTiling);
+  //populateLoweringONNXMatMulOpPattern(patterns, typeConverter, ctx, enableTiling);
+  populateLoweringONNXMatMulTOCIMMatMulOpPattern(patterns, typeConverter, ctx, 1, 0);
+
   populateLoweringONNXRandomNormalOpPattern(patterns, typeConverter, ctx);
   populateLoweringONNXRandomNormalLikeOpPattern(patterns, typeConverter, ctx);
   populateLoweringONNXLRNOpPattern(patterns, typeConverter, ctx);
@@ -193,8 +194,7 @@ void FrontendToKrnlLoweringPass::runOnOperation() {
 
   // We define the specific operations, or dialects, that are legal targets for
   // this lowering.
-  target
-      .addLegalDialect<KrnlOpsDialect, AffineDialect, arith::ArithmeticDialect,
+  target.addLegalDialect<KrnlOpsDialect, AffineDialect, arith::ArithmeticDialect,
           StandardOpsDialect, linalg::LinalgDialect, math::MathDialect,
           memref::MemRefDialect, shape::ShapeDialect, scf::SCFDialect>();
   // Needed to support unsigned int computations. To be removed if we use a
