@@ -24,8 +24,11 @@
 #else
 #include <assert.h>
 #endif
-
+// former veersion
 #include "onnx-mlir/Runtime/OMTensorList.h"
+
+// for rv64 compile
+// #include "../../include/onnx-mlir/Runtime/OMTensorList.h"
 
 struct OMTensorList {
 #ifdef __cplusplus

@@ -87,5 +87,12 @@ void genSignatureFunction(mlir::ModuleOp module,
     const llvm::ArrayRef<std::string> entryPointNames,
     const llvm::ArrayRef<std::string> inSignatures,
     const llvm::ArrayRef<std::string> outSignatures);
+
+void populateLoweringKrnlCIMMatMulOpPattern(mlir::TypeConverter &typeConverter,
+    mlir::RewritePatternSet &patterns, mlir::MLIRContext *ctx);
+
+void populateLoweringKrnlCIMConvOpPattern(mlir::TypeConverter &typeConverter,
+    mlir::RewritePatternSet &patterns, mlir::MLIRContext *ctx);
+
 } // namespace krnl
 } // namespace onnx_mlir

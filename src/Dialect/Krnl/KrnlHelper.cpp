@@ -409,57 +409,57 @@ bool isKrnlGlobalConstant(Value result) {
   return true;
 }
 
-// ----------- krnl cim helper functions-------------------------------
-static void appendMangledType(llvm::raw_string_ostream &ss, Type t) {
-  if (auto memref = t.dyn_cast<MemRefType>()) {
-    ss << "view";
-    for (auto size : memref.getShape())
-      if (size < 0)
-        ss << "sx";
-      else
-        ss << size << "x";
-    appendMangledType(ss, memref.getElementType());
-  } else if (t.isSignlessIntOrIndexOrFloat()) {
-    ss << t;
-  } else {
-    llvm_unreachable("Invalid type for cim library name mangling");
-  }
-}
+// // ----------- krnl cim helper functions-------------------------------
+// static void appendMangledType(llvm::raw_string_ostream &ss, Type t) {
+//   if (auto memref = t.dyn_cast<MemRefType>()) {
+//     ss << "view";
+//     for (auto size : memref.getShape())
+//       if (size < 0)
+//         ss << "sx";
+//       else
+//         ss << size << "x";
+//     appendMangledType(ss, memref.getElementType());
+//   } else if (t.isSignlessIntOrIndexOrFloat()) {
+//     ss << t;
+//   } else {
+//     llvm_unreachable("Invalid type for cim library name mangling");
+//   }
+// }
 
-std::string generateLibraryCallName(Operation *op) {
-  std::string name(op->getName().getStringRef().str());
-  name.reserve(128);
-  std::replace(name.begin(), name.end(), '.', '_');
-  llvm::raw_string_ostream ss(name);
+// std::string generateLibraryCallName(Operation *op) {
+//   std::string name(op->getName().getStringRef().str());
+//   name.reserve(128);
+//   std::replace(name.begin(), name.end(), '.', '_');
+//   llvm::raw_string_ostream ss(name);
 
-  ss << "_";
-  auto types = op->getOperandTypes();
-  interleave(
-      types.begin(), types.end(), [&](Type t) { appendMangledType(ss, t); },
-      [&]() { ss << "_"; });
+//   ss << "_";
+//   auto types = op->getOperandTypes();
+//   llvm::interleave(
+//       types.begin(), types.end(), [&](Type t) { appendMangledType(ss, t); },
+//       [&]() { ss << "_"; });
 
-  ss << "_";
-  auto attrs = op->getAttrs();
-  interleave(
-      attrs.begin(), attrs.end(),
-      [&](NamedAttribute attr) {
-        ss << std::get<1>(attr).cast<StringAttr>().getValue();
-      },
-      [&]() { ss << "_"; });
+//   ss << "_";
+//   auto attrs = op->getAttrs();
+//   llvm::interleave(
+//       attrs.begin(), attrs.end(),
+//       [&](mlir::NamedAttribute attr) {
+//         ss << std::get<1>(attr).cast<StringAttr>().getValue();
+//       },
+//       [&]() { ss << "_"; });
 
-  return ss.str();
-}
+//   return ss.str();
+// }
 
-void appendOperandPrecision(llvm::raw_string_ostream &ss, Type t) {
-  if (auto memref = t.dyn_cast<MemRefType>()) {
-    appendOperandPrecision(ss, memref.getElementType());
-  } else if (t.isSignlessIntOrIndexOrFloat()) {
-    ss << "_";
-    ss << t;
-  } else {
-    llvm_unreachable("Invalid type for cim library precision mangling");
-  }
-}
+// void appendOperandPrecision(llvm::raw_string_ostream &ss, Type t) {
+//   if (auto memref = t.dyn_cast<MemRefType>()) {
+//     appendOperandPrecision(ss, memref.getElementType());
+//   } else if (t.isSignlessIntOrIndexOrFloat()) {
+//     ss << "_";
+//     ss << t;
+//   } else {
+//     llvm_unreachable("Invalid type for cim library precision mangling");
+//   }
+// }
 
 } // namespace krnl
 } // namespace onnx_mlir

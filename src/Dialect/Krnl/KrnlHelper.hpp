@@ -26,6 +26,8 @@
 #include "src/Dialect/Mlir/DialectBuilder.hpp"
 #include "src/Dialect/Mlir/IndexExpr.hpp"
 
+#include "mlir/IR/Types.h"
+
 namespace mlir {
 class KrnlIterateOp;
 class KrnlGetRefOp;
@@ -287,10 +289,10 @@ bool isKrnlGlobalConstant(mlir::Value result);
 
 // ---------------------- Krnl CIM helper functions------------------------- // 
 
-std::string generateLibraryCallName(Operation *op);
+// std::string generateLibraryCallName(mlir::Operation *op);
 
-/// Appends element type to library call name based on an operand type.
-void appendOperandPrecision(llvm::raw_string_ostream &ss, Type t);
+// /// Appends element type to library call name based on an operand type.
+// void appendOperandPrecision(llvm::raw_string_ostream &ss, mlir::Type t);
 
 
 } // namespace krnl

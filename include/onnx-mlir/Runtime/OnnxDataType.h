@@ -28,7 +28,9 @@
 enum OM_DATA_TYPE {
 #define OM_TYPE_METADATA_DEF(ENUM_NAME, ENUM_VAL, DTYPE_SIZE, DTYPE_NAME)      \
   ENUM_NAME = ENUM_VAL,
+
 #include "OnnxDataTypeMetaData.inc"
+
 
 #undef OM_TYPE_METADATA_DEF
 };

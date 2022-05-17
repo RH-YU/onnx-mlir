@@ -15,6 +15,8 @@ add_onnx_mlir_library(OMKrnlToLLVM
   KrnlStrncmp.cpp
   KrnlToLLVMHelper.cpp  
   KrnlUnaryMath.cpp
+  KrnlCIMMatMul.cpp
+  KrnlCIMConv.cpp
   KrnlVectorTypeCast.cpp 
   RuntimeAPI.cpp
 

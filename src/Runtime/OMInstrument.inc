@@ -35,7 +35,11 @@
 #include <stdio.h>
 #include <string.h>
 
+// former version
 #include "onnx-mlir/Runtime/OMInstrument.h"
+
+// for rv64 compile
+// #include "../../include/onnx-mlir/Runtime/OMInstrument.h"
 
 #ifdef _WIN32
 #include "windows.h"

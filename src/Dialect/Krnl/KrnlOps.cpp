@@ -864,15 +864,15 @@ Optional<Value> KrnlSeqExtractOp::buildClone(OpBuilder &builder, Value alloc) {
       .getResult();
 }
 
-void KrnlCIMMatMulOp::build(::mlir::OpBuilder &odsBuilder,
-    Value odsTile_id, Value odsA,Value odsB) {
-  build(odsBuilder, odsTile_id, odsA, odsB);
-}
+// void KrnlCIMMatMulOp::build(OpBuilder &builder,
+//     Value odsTile_id, Value odsA, Value odsB, Value odsC) {
+//   build(odsBuilder, odsTile_id, odsA, odsB, odsC);
+// }
 
-void KrnlWriteMatrixOp::build(::mlir::OpBuilder &odsBuilder,
-    Value odsTile_id, Value odsA) {
-  build(odsBuilder, odsTile_id, odsA);
-}
+// void KrnlWriteMatrixOp::build(::mlir::OpBuilder &odsBuilder,
+//     Value odsTile_id, Value odsA) {
+//   build(odsBuilder, odsTile_id, odsA);
+// }
 
 } // namespace mlir
 

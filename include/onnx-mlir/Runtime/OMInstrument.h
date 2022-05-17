@@ -41,6 +41,10 @@
 // #include "include/onnx-mlir/Compiler/OMCompilerMacros.h"
 #include "onnx-mlir/Compiler/OMCompilerMacros.h"
 
+// for rv64-compile
+// #include "../Compiler/OMCompilerMacros.h"
+
+
 
 #ifdef __cplusplus
 extern "C" {

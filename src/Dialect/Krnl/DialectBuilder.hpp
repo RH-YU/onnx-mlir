@@ -143,6 +143,11 @@ struct KrnlBuilder : public DialectBuilder {
   mlir::Value findIndex(
       mlir::Value input, mlir::Value G, mlir::Value V, mlir::Value len) const;
   void printTensor(mlir::StringRef msg, mlir::Value input) const;
+
+
+//   void CIMMatMul(mlir::Value tile_id, mlir::Value A, mlir::Value B, mlir::Value C);
+//   void WriteMatrix( mlir::Value tile_id, mlir::Value A);
+
 };
 
 // Recursive class specialized for KrnlBuilder referred to as krnl.
@@ -175,10 +180,5 @@ struct MultiDialectBuilder<AffineBuilderKrnlMem, Ts...>
       : MultiDialectBuilder<Ts...>(db), affineKMem(db) {}
   AffineBuilderKrnlMem affineKMem;
 };
-
-void cimmatmul(mlir::Valure tile_id,mlir::Value A, mlir::Value B) const;
-
-void writematrix( mlir::Valure tile_id,mlir::Value A) const;
-
 
 } // namespace onnx_mlir

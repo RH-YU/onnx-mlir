@@ -1128,12 +1128,25 @@ def KrnlPrintOp : Op<Krnl_Dialect, "print", [MemRefsNormalizable]> {
   let arguments = (ins StrAttr:$format, Optional<AnyType>:$input);
 } 
 
-def KrnlCIMMatMulOp : Op<Krnl_Dialect, "cim_matmul", [MemRefsNormalizable]> {
-  let summary = "Using cim matmul op.";
+//---------------------------Extention dialects for CIM -----------------------------------
+
+
+def KrnlCIMMatMulOp : Op<Krnl_Dialect,"cimmatmul"> {
+  let summary = "Perform general matrix-matrix multiplication on CIM";
   let description = [{
-    The "cim_matmul" operation performs matrix-matrix multiplication between
+    The "cimmatmul" operation performs matrix-matrix multiplication between
     the first matrix and the one stored on a crossbar. The result is
     stored in the second matrix.
+    The tile ID specifies which crossbar executes the operation.
+    The shapes of the matricies are expected to be valid.
+    The operation expects contiguous memrefs.
+
+    Example:
+
+    ```mlir
+      // C(m, n) = A(m, k) * B(k, n)
+      krnl.CIMMatMul(%tileId, %A, %B, %C) : i32, memref<?x?xi32>, memref<?x?xi32>, memref<?x?xi32>
+    ```
   }];
 
   code libraryCallName = [{
@@ -1149,41 +1162,48 @@ def KrnlCIMMatMulOp : Op<Krnl_Dialect, "cim_matmul", [MemRefsNormalizable]> {
 
   let arguments = (ins SignlessIntegerLike:$tileId,
                        AnyStridedMemRefOfRank<2>:$A,
+                       AnyStridedMemRefOfRank<2>:$B,
                        AnyStridedMemRefOfRank<2>:$C);
 
   let assemblyFormat = "`(` operands `)` attr-dict `:` type(operands)";
-} 
+}
 
-
-def KrnlWriteMatrixOp : Op<Krnl_Dialect, "write_matrix", [MemRefsNormalizable]> {
-  let summary = "Write a matrix into a CIM crossbar";
+def KrnlCIMConvOp : Op<Krnl_Dialect,"cimconv"> {
+  let summary = "Perform general convolution2d on CIM";
   let description = [{
-    The "write_matrix" operation writes the provided matrix into
-    the crossbar specified by its tile ID.
-    The shapes of the matrix is expected to fit into the crossbar.
-    The operation expects contiguous memref.
+    The "cimconv" operation performs convolution between
+    the first matrix and the one stored on a crossbar. The result is
+    stored in the third matrix.
+    The tile ID specifies which crossbar executes the operation.
+    The shapes of the matricies are expected to be valid.
+    The operation expects contiguous memrefs.
 
     Example:
 
     ```mlir
       // C(m, n) = A(m, k) * B(k, n)
-      cim.write_to_crossbar(%tileId, %B) : i32, memref<?x?xi32>
+      cim.gemm(%tileId, %A, %C) : i32, memref<?x?xi32>, memref<?x?xi32>
     ```
   }];
 
   code libraryCallName = [{
     std::string getLibraryCallName() {
-      std::string name = "write_matrix";
+      std::string name = "cim_conv";
 
       llvm::raw_string_ostream ss(name);
-      appendOperandPrecision(ss, B().getType());
+      appendOperandPrecision(ss, C().getType());
 
       return ss.str();
     }
   }];
 
   let arguments = (ins SignlessIntegerLike:$tileId,
-                       AnyStridedMemRefOfRank<2>:$B);
+                       SignlessIntegerLike:$stride_row,
+                       SignlessIntegerLike:$stride_col,
+                       AnyMemRef:$padding,
+                       AnyStridedMemRefOfRank<4>:$A,
+                       AnyStridedMemRefOfRank<4>:$B,
+                       AnyStridedMemRefOfRank<4>:$C);
 
   let assemblyFormat = "`(` operands `)` attr-dict `:` type(operands)";
 }

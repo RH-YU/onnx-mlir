@@ -170,10 +170,10 @@ void populateAffineAndKrnlToLLVMConversion(RewritePatternSet &patterns,
   populateMemRefToLLVMConversionPatterns(typeConverter, patterns);
   arith::populateArithmeticToLLVMConversionPatterns(typeConverter, patterns);
   cf::populateControlFlowToLLVMConversionPatterns(typeConverter, patterns);
-
   populateReconcileUnrealizedCastsPatterns(patterns);
   krnl::populateKrnlToLLVMConversion(
       typeConverter, patterns, ctx, constantOutputs, singleEntryPoint);
+  // populateStdToLLVMConversionPatterns(typeConverter, patterns);
 }
 
 void recordEntryPointSignatures(ModuleOp &module,
@@ -598,9 +598,11 @@ void populateKrnlToLLVMConversion(LLVMTypeConverter &typeConverter,
   krnl::populateLoweringKrnlUnaryMathOpPattern(typeConverter, patterns, ctx);
   krnl::populateLoweringKrnlStrncmpOpPattern(typeConverter, patterns, ctx);
 
-  // ----------- CIM LOWERING ------------------------------------------ // 
-  krnl::populateLoweringCIMMatMulOpPattern(patterns, ctx);
-
+  // // ----------- CIM LOWERING ------------------------------------------ // 
+  // krnl::populateLoweringCIMMatMulOpPattern(patterns, ctx);
+  krnl::populateLoweringKrnlCIMConvOpPattern(typeConverter, patterns, ctx);
+  krnl::populateLoweringKrnlCIMMatMulOpPattern(typeConverter, patterns, ctx);
+  
 }
 
 } // namespace krnl

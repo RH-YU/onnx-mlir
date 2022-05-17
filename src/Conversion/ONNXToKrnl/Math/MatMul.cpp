@@ -21,6 +21,8 @@
 #include "src/Dialect/Mlir/IndexExpr.hpp"
 #include "src/Dialect/ONNX/ShapeInference/ONNXShapeHelper.hpp"
 
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
+
 #define DEBUG_TYPE "matmul"
 static constexpr int32_t DISABLE_MAT_VEC_PRODUCT = 0;
 
@@ -281,6 +283,42 @@ struct ONNXMatMulOpLowering : public ConversionPattern {
         });
   }
 
+  void replaceMatMulAsKrnlCallOp(Operation *op,
+      ArrayRef<Value> operands, Value alloc,
+      ConversionPatternRewriter &rewriter, Location loc) const {
+      // Value A(operandAdaptor.A()), B(operandAdaptor.B()), C(alloc);
+      MultiDialectBuilder<KrnlBuilder, MemRefBuilder, MathBuilder, VectorBuilder>
+        create(rewriter, loc);
+      rewriter.create<KrnlCallOp>(loc, alloc, op, operands, true);
+      
+  }
+
+  void replaceMatMulAsCIMMatMulOp(Operation *op,
+      ArrayRef<Value> operands, Value alloc,
+      ConversionPatternRewriter &rewriter, Location loc) const { 
+      
+      ONNXMatMulOpAdaptor operandAdaptor(operands);
+      // auto matA = op->getOperand(0);
+      // auto matB = op->getOperand(1);
+    
+      Value A(operandAdaptor.A()), B(operandAdaptor.B());
+      auto matA = A;
+      auto matB = B;
+    
+      // auto matC = op->getOperand(2);
+      Value matC = alloc;
+      // auto memRefType = convertToMemRefType(*op->result_type_begin());
+      auto elementType = rewriter.getIntegerType(32);
+      // mlir::MemRefType elementType =  rewriter.getIntegerAttr(rewriter.getIntegerType(32), 0));
+      // mlir::MemRefType elementType = memRefType.getElementType();
+
+      // // auto cimTileID = rewriter.create<LLVM::ConstantOp>(
+      // //     op->getLoc(), rewriter.getIntegerAttr(rewriter.getIntegerType(32), 0));
+      auto cimTileID = emitConstantOp(rewriter, loc, elementType, 0);
+      // uint8_t cimTileID = 0;
+      rewriter.create<KrnlCIMMatMulOp>(loc, cimTileID, matA, matB, matC);    
+  }
+
   // Handle the cases with 2x2 matrices both for A, B, and C without
   // broadcast. Implementation here uses the efficient 2d tiling plus kernel
   // substitution.
@@ -297,28 +335,36 @@ struct ONNXMatMulOpLowering : public ConversionPattern {
     LogicalResult shapecomputed = shapeHelper.computeShape(operandAdaptor);
     assert(succeeded(shapecomputed) && "Could not compute output shape");
 
-    // Insert an allocation and deallocation for the output of this operation.
+    bool insertDealloc = checkInsertDealloc(op);
+    // // Insert an allocation and deallocation for the output of this operation.
     MemRefType outputMemRefType = convertToMemRefType(*op->result_type_begin());
     Type elementType = outputMemRefType.getElementType();
     Value alloc = insertAllocAndDeallocSimple(
-        rewriter, op, outputMemRefType, loc, shapeHelper.dimsForOutput());
+        rewriter, op, outputMemRefType, loc, shapeHelper.dimsForOutput(),insertDealloc);
 
-    // Get the constants: zero.
-    Value zero = emitConstantOp(rewriter, loc, elementType, 0);
+    // // Get the constants: zero.
+    // Value zero = emitConstantOp(rewriter, loc, elementType, 0);
 
-    Value A(operandAdaptor.A()), B(operandAdaptor.B());
-    auto aRank = A.getType().cast<MemRefType>().getShape().size();
-    auto bRank = B.getType().cast<MemRefType>().getShape().size();
-    if (enableTiling && aRank == 2 && bRank == 2) {
-      // Optimized Matmul only when 2D and allowed to tile and unroll.
-      replace2x2Matmul2d(matMulOp, operandAdaptor, elementType, shapeHelper,
-          alloc, zero, rewriter, loc);
-    } else {
-      replaceGenericMatmul(matMulOp, operandAdaptor, elementType, shapeHelper,
-          alloc, zero, rewriter, loc);
-    }
+    // Value A(operandAdaptor.A()), B(operandAdaptor.B());
+    // auto aRank = A.getType().cast<MemRefType>().getShape().size();
+    // auto bRank = B.getType().cast<MemRefType>().getShape().size();
+   
+    // replaceMatMulAsKrnlCallOp(op, operands, alloc, rewriter, loc);
+    //Value cimCall =rewriter.create<KrnlCallOp>(loc, alloc, op, operands, true);
+
+    replaceMatMulAsCIMMatMulOp(op, operands, alloc, rewriter, loc);
+
+    // if (enableTiling && aRank == 2 && bRank == 2) {
+    //   // Optimized Matmul only when 2D and allowed to tile and unroll.
+    //   replace2x2Matmul2d(matMulOp, operandAdaptor, elementType, shapeHelper,
+    //       alloc, zero, rewriter, loc);
+    // } else {
+    //   replaceGenericMatmul(matMulOp, operandAdaptor, elementType, shapeHelper,
+    //       alloc, zero, rewriter, loc);
+    // }
     // Done.
     rewriter.replaceOp(op, alloc);
+    // rewriter.eraseOp(op);
     return success();
   }
 };
@@ -326,50 +372,6 @@ struct ONNXMatMulOpLowering : public ConversionPattern {
 void populateLoweringONNXMatMulOpPattern(RewritePatternSet &patterns,
     TypeConverter &typeConverter, MLIRContext *ctx, bool enableTiling) {
   patterns.insert<ONNXMatMulOpLowering>(typeConverter, ctx, enableTiling);
-}
-
-// -------------------------The uppon is the formet transformation about converting the ONNX MatMul operation into arithm mul operations, etc.----------------------------
-
-static void replaceOpWithCIMMatMul(Operation *op, PatternRewriter &rewriter,
-                                   uint32_t tileSize, bool minWrites) {
-  auto matA = op->getOperand(0);
-  auto matB = op->getOperand(1);
-  auto matC = op->getOperand(2);
-
-  auto cimTileID = rewriter.create<ConstantOp>(
-      op->getLoc(), rewriter.getIntegerAttr(rewriter.getIntegerType(32), 0));
-
-  // TODO(adam-smnk) Check if MatmulOp/GEMM can be replaced by vector-matrix
-  // mul
-  if (isa<ONNX::MatMulOp>(op)) {
-    // Assumes that linalg.matmul always has correct values and memrefs
-    rewriter.create<cim::WriteToCrossbarOp>(op->getLoc(), cimTileID, matB);
-    rewriter.create<cim::GemmOp>(op->getLoc(), cimTileID, matA, matC);
-    //rewriter.create<cim::BarrierOp>(op->getLoc(), cimTileID);
-  } 
-  rewriter.eraseOp(op);
-}
-
-struct MatmulOpLowering : public OpRewritePattern<ONNX::MatMulOp> {
-  // using OpRewritePattern<ONNX::MatMulOp>::OpRewritePattern;
-  MatmulOpLowering() = delete;
-  MatmulOpLowering(MLIRContext *ctx, uint32_t tileSize_, bool minWrites_)
-      : OpRewritePattern(ctx), tileSize(tileSize_), minWrites(minWrites_) {}
-
-  PatternMatchResult matchAndRewrite(ONNX::MatMulOp op,
-                                     PatternRewriter &rewriter) const final {
-    replaceOpWithCIMMatmul(op, rewriter, tileSize, minWrites);
-    return matchSuccess();
-  }
-
-  uint32_t tileSize;
-  bool minWrites;
-};
-
-void populateLoweringONNXMatMulTOCIMMatMulOpPattern(
-    OwningRewritePatternList &patterns, MLIRContext *ctx, uint32_t tileSize,
-    bool minWrites) {
-  patterns.insert<MatmulOpLowering>(ctx, tileSize,minWrites);
 }
 
 } // namespace onnx_mlir

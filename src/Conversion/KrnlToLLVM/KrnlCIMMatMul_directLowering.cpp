@@ -47,35 +47,36 @@ public:
   LogicalResult matchAndRewrite(Operation *op, ArrayRef<Value> operands,
       ConversionPatternRewriter &rewriter) const override {
     MLIRContext *context = op->getContext();
-    std::cout << op << std::endl;
     Location loc = op->getLoc();
 
-    // // get the LLVM type for the function args and result
+    // get the LLVM type for the function args and result
     mlir::Type inType = op->getOperand(0).getType();
     mlir::Type llvmType;
     // if (inType.isF32())
     //   llvmType = FloatType::getF32(context);
     // else if (inType.isF64())
     //   llvmType = FloatType::getF64(context);
+
     llvmType = FloatType::getF32(context);
 
-    // // Insert and/or get reference to elementary math function declaration.
-    // assert(
-    //     inType.isIntOrFloat() && "Type for math function must be int or float");
+    // Insert and/or get reference to elementary math function declaration.
+    assert(
+        inType.isIntOrFloat() && "Type for call function must be int or float");
     ModuleOp parentModule = op->getParentOfType<ModuleOp>();
-    auto callFunctionRef = getOrInsertCallFunction(op, rewriter, parentModule,
+    auto CallFunctionRef = getOrInsertCallFunction(rewriter, parentModule,
         CallFunctionName<KrnlCIMMatMulOp>().functionName(), llvmType);
 
     // Emit function call.
-    // rewriter.replaceOpWithNewOp<LLVM::CallOp>(
-    //     op, inType, callFunctionRef, operands[0]);
-    
-    // rewriter.create<CallOp>(loc, callFunctionRef, llvmType, args);
-    rewriter.replaceOpWithNewOp<mlir::CallOp>(op, CallFunctionName<KrnlCIMMatMulOp>().functionName(),
-                                              op->getResultTypes(),
-                                              op->getOperands());
-    // rewriter.replaceOp(op, funcCall.getResults());
-    // rewriter.eraseOp(op);
+    // auto funcCall = rewriter.create<CallOp>(
+    //     loc, CallFunctionRef, llvmType, ArrayRef<Value>({operands}));
+    // rewriter.replaceOp(op, funcCall.getResults()[0]);
+    // Value casted = rewriter.create<LLVM::BitcastOp>(
+    //     op->getLoc(), getVoidPtrType(),
+    //     memref.allocatedPtr(rewriter, op->getLoc()));
+
+    rewriter.replaceOpWithNewOp<LLVM::CallOp>(op,ArrayRef<Type>(), 
+                                              CallFunctionRef,
+                                              operands);
     return success();
   }
 
@@ -84,27 +85,23 @@ private:
   //
   // declare float <CallFuncName>(float)
   //
-  FlatSymbolRefAttr getOrInsertCallFunction(Operation *op, PatternRewriter &rewriter,
+  FlatSymbolRefAttr getOrInsertCallFunction( PatternRewriter &rewriter,
       ModuleOp module, std::string callFuncName, mlir::Type llvmType) const {
+
     auto *context = module.getContext();
     if (module.lookupSymbol<LLVM::LLVMFuncOp>(callFuncName))
       return SymbolRefAttr::get(context, callFuncName);
 
     // Create function declaration.
     // auto llvmF32Ty = FloatType::get(context);
+    auto llvmFnType =
+        LLVM::LLVMFunctionType::get(llvmType, ArrayRef<mlir::Type>({llvmType}));
 
-    // auto llvmFnType =
-    //     LLVM::LLVMFunctionType::get(llvmType, ArrayRef<mlir::Type>({llvmType}));
-    
-    SmallVector<Type, 4> inputTypes(op->getOperandTypes());
-    auto libFnType = mlir::FunctionType::get(rewriter.getContext(), inputTypes, 
-                                        op->getResultTypes());
-
-    // Insert the call function into the body of the parent module.
+    // Insert the unary math function into the body of the parent module.
     PatternRewriter::InsertionGuard insertGuard(rewriter);
     rewriter.setInsertionPointToStart(module.getBody());
-    rewriter.create<FuncOp>(
-        op->getLoc(), callFuncName, libFnType);
+    rewriter.create<LLVM::LLVMFuncOp>(
+        module.getLoc(), callFuncName, llvmFnType);
     return SymbolRefAttr::get(context, callFuncName);
   }
 };

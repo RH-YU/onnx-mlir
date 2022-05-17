@@ -14,10 +14,26 @@
 
 #include "src/Conversion/ONNXToKrnl/ONNXToKrnlCommon.hpp"
 #include "src/Dialect/ONNX/ShapeInference/ONNXShapeHelper.hpp"
-
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
 using namespace mlir;
 
+
 namespace onnx_mlir {
+
+Value insertPadsMemRefI64(
+      PatternRewriter &rewriter, Location loc, ArrayRef<IndexExpr> originalDims) {
+    MultiDialectBuilder<KrnlBuilder, MathBuilder> create(rewriter, loc);
+    MemRefType shapeMemRefType = MemRefType::get(
+        {(int64_t)originalDims.size()}, rewriter.getIntegerType(64));
+    Value shapeMemRef = insertAllocAndDealloc(
+        shapeMemRefType, loc, rewriter, ONNXToKrnl_gEmitDealloc);
+    for (uint64_t i = 0; i < originalDims.size(); ++i) {
+      Value dim =
+          create.math.cast(rewriter.getI64Type(), originalDims[i].getValue());
+      create.krnl.storeIE(dim, shapeMemRef, {LiteralIndexExpr(i)});
+    }
+    return shapeMemRef;
+  }
 
 struct ONNXConvOpLowering : public ConversionPattern {
   ONNXConvOpLowering(TypeConverter &typeConverter, MLIRContext *ctx)
@@ -203,6 +219,34 @@ struct ONNXConvOpLowering : public ConversionPattern {
               }); // Output spacial loops.
         });       // Outer loops;
   }
+  
+  void replaceConvAsCIMConvOp(Operation *op,
+      ArrayRef<Value> operands, Value alloc,
+      ConversionPatternRewriter &rewriter, Location loc, ONNXConvOpShapeHelper &shapeHelper
+      ) const { 
+      
+      ONNXMatMulOpAdaptor operandAdaptor(operands);
+      // auto matA = op->getOperand(0);
+      // auto matB = op->getOperand(1);
+    
+      Value A(operandAdaptor.A()), B(operandAdaptor.B());
+      auto matA = A;
+      auto matB = B;
+    
+      // auto matC = op->getOperand(2);
+      Value matC = alloc;
+      // auto memRefType = convertToMemRefType(*op->result_type_begin());
+      auto elementType = rewriter.getIntegerType(32);
+
+      Value padding_ = insertPadsMemRefI64(rewriter, loc, shapeHelper.pads);
+      // Value stride_ = insertStridesMemRefI64(rewriter, loc, strides_);
+      // auto padding = emitConstantOp(rewriter, loc, elementType, padding_);
+      auto stride_row = emitConstantOp(rewriter, loc, elementType, shapeHelper.strides[0]);
+      auto stride_col = emitConstantOp(rewriter, loc, elementType, shapeHelper.strides[1]);
+      auto cimTileID = emitConstantOp(rewriter, loc, elementType, 0);
+      // uint8_t cimTileID = 0;
+      rewriter.create<KrnlCIMConvOp>(loc, cimTileID, stride_row, stride_col, padding_, matA, matB, matC);    
+  }
 
   LogicalResult matchAndRewrite(Operation *op, ArrayRef<Value> operands,
       ConversionPatternRewriter &rewriter) const final {
@@ -222,8 +266,10 @@ struct ONNXConvOpLowering : public ConversionPattern {
     Value alloc = insertAllocAndDeallocSimple(
         rewriter, op, memRefType, loc, shapeHelper.dimsForOutput());
 
-    convUnoptimized(rewriter, shapeHelper.scope, convOp, operandAdaptor,
-        shapeHelper, memRefType, alloc);
+    //convUnoptimized(rewriter, shapeHelper.scope, convOp, operandAdaptor,
+    //              shapeHelper, memRefType, alloc);
+
+    replaceConvAsCIMConvOp(op, operands, alloc, rewriter, loc, shapeHelper);    
 
     rewriter.replaceOp(op, alloc);
     return success();

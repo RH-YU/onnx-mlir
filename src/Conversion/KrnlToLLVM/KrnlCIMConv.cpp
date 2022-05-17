@@ -24,6 +24,7 @@
 
 #include "mlir/Dialect/StandardOps/Transforms/FuncConversions.h"
 
+#include<sstream>
 #define DEBUG_TYPE "krnl_to_llvm"
 
 using namespace mlir;
@@ -33,21 +34,26 @@ namespace krnl {
 
 template <typename Op>
 struct CallFunctionName {
-  static std::string functionName() { return "CIMMatMul"; };
+  static std::string functionName() {
+    // std::string temp_ = op->getName().getStringRef().str();
+    std::string name = "CIMConv";
+    // std::string name = "CIMConv";
+    return name; 
+    };
 };
 
-template <typename KrnlCIMMatMulOp>
-class KrnlCIMMatMulOpLowering : public ConversionPattern {
+template <typename KrnlCIMConvOp>
+class KrnlCIMConvOpLowering : public ConversionPattern {
 public:
-  explicit KrnlCIMMatMulOpLowering(
+  explicit KrnlCIMConvOpLowering(
       TypeConverter &typeConverter, MLIRContext *context)
       : ConversionPattern(
-            typeConverter, KrnlCIMMatMulOp::getOperationName(), 1, context) {}
+            typeConverter, KrnlCIMConvOp::getOperationName(), 1, context) {}
 
   LogicalResult matchAndRewrite(Operation *op, ArrayRef<Value> operands,
       ConversionPatternRewriter &rewriter) const override {
     MLIRContext *context = op->getContext();
-    std::cout << op << std::endl;
+    // std::cout << op << std::endl;
     Location loc = op->getLoc();
 
     // // get the LLVM type for the function args and result
@@ -64,14 +70,14 @@ public:
     //     inType.isIntOrFloat() && "Type for math function must be int or float");
     ModuleOp parentModule = op->getParentOfType<ModuleOp>();
     auto callFunctionRef = getOrInsertCallFunction(op, rewriter, parentModule,
-        CallFunctionName<KrnlCIMMatMulOp>().functionName(), llvmType);
+        CallFunctionName<KrnlCIMConvOp>().functionName(), llvmType);
 
     // Emit function call.
     // rewriter.replaceOpWithNewOp<LLVM::CallOp>(
     //     op, inType, callFunctionRef, operands[0]);
-    
+  
     // rewriter.create<CallOp>(loc, callFunctionRef, llvmType, args);
-    rewriter.replaceOpWithNewOp<mlir::CallOp>(op, CallFunctionName<KrnlCIMMatMulOp>().functionName(),
+    rewriter.replaceOpWithNewOp<mlir::CallOp>(op, CallFunctionName<KrnlCIMConvOp>().functionName(),
                                               op->getResultTypes(),
                                               op->getOperands());
     // rewriter.replaceOp(op, funcCall.getResults());
@@ -109,9 +115,9 @@ private:
   }
 };
 
-void populateLoweringKrnlCIMMatMulOpPattern(TypeConverter &typeConverter,
+void populateLoweringKrnlCIMConvOpPattern(TypeConverter &typeConverter,
     RewritePatternSet &patterns, MLIRContext *ctx) {
-  patterns.insert<KrnlCIMMatMulOpLowering<KrnlCIMMatMulOp>>(typeConverter, ctx);
+  patterns.insert<KrnlCIMConvOpLowering<KrnlCIMConvOp>>(typeConverter, ctx);
 }
 
 } // namespace krnl

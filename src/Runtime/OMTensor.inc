@@ -35,8 +35,12 @@
 
 #include <stdio.h>
 #include <string.h>
-
+// former version
 #include "onnx-mlir/Runtime/OMTensor.h"
+
+// for rv-64 compile
+// #include "../../include/onnx-mlir/Runtime/OMTensor.h"
+
 
 #ifdef __cplusplus
 #include "src/Runtime/OMTensorHelper.hpp"

@@ -15,8 +15,11 @@
 
 #ifndef ONNX_MLIR_OMTENSORLIST_H
 #define ONNX_MLIR_OMTENSORLIST_H
-
+// former version
 #include "onnx-mlir/Runtime/OMTensor.h"
+
+// for rv64 compile
+// #include "OMTensor.h"
 
 struct OMTensorList;
 
