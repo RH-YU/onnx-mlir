@@ -32,11 +32,12 @@ namespace onnx_mlir {
 
 struct ONNXMatMulOpLowering : public ConversionPattern {
   ONNXMatMulOpLowering(
-      TypeConverter &typeConverter, MLIRContext *ctx, bool enableTiling)
+      TypeConverter &typeConverter, MLIRContext *ctx, bool enableTiling, int *tile_id)
       : ConversionPattern(
             typeConverter, mlir::ONNXMatMulOp::getOperationName(), 1, ctx),
-        enableTiling(enableTiling) {}
+        enableTiling(enableTiling),tile_id(tile_id) {}
   bool enableTiling;
+  int* tile_id;
   // Handle the generic cases, including when there are broadcasts.
   void replaceGenericMatmul(ONNXMatMulOp &matMulOp,
       ONNXMatMulOpAdaptor &operandAdaptor, Type elementType,
@@ -295,7 +296,7 @@ struct ONNXMatMulOpLowering : public ConversionPattern {
 
   void replaceMatMulAsCIMMatMulOp(Operation *op,
       ArrayRef<Value> operands, Value alloc,
-      ConversionPatternRewriter &rewriter, Location loc) const { 
+      ConversionPatternRewriter &rewriter, Location loc, int *tile_id) const { 
       
       ONNXMatMulOpAdaptor operandAdaptor(operands);
       // auto matA = op->getOperand(0);
@@ -314,7 +315,9 @@ struct ONNXMatMulOpLowering : public ConversionPattern {
 
       // // auto cimTileID = rewriter.create<LLVM::ConstantOp>(
       // //     op->getLoc(), rewriter.getIntegerAttr(rewriter.getIntegerType(32), 0));
-      auto cimTileID = emitConstantOp(rewriter, loc, elementType, 0);
+      // auto cimTileID = emitConstantOp(rewriter, loc, elementType, 0);
+      auto cimTileID = emitConstantOp(rewriter, loc, elementType, *tile_id);
+      *tile_id = *tile_id + 1;
       // uint8_t cimTileID = 0;
       rewriter.create<KrnlCIMMatMulOp>(loc, cimTileID, matA, matB, matC);    
   }
@@ -352,7 +355,7 @@ struct ONNXMatMulOpLowering : public ConversionPattern {
     // replaceMatMulAsKrnlCallOp(op, operands, alloc, rewriter, loc);
     //Value cimCall =rewriter.create<KrnlCallOp>(loc, alloc, op, operands, true);
 
-    replaceMatMulAsCIMMatMulOp(op, operands, alloc, rewriter, loc);
+    replaceMatMulAsCIMMatMulOp(op, operands, alloc, rewriter, loc, tile_id);
 
     // if (enableTiling && aRank == 2 && bRank == 2) {
     //   // Optimized Matmul only when 2D and allowed to tile and unroll.
@@ -370,8 +373,8 @@ struct ONNXMatMulOpLowering : public ConversionPattern {
 };
 
 void populateLoweringONNXMatMulOpPattern(RewritePatternSet &patterns,
-    TypeConverter &typeConverter, MLIRContext *ctx, bool enableTiling) {
-  patterns.insert<ONNXMatMulOpLowering>(typeConverter, ctx, enableTiling);
+    TypeConverter &typeConverter, MLIRContext *ctx, bool enableTiling, int *tile_id) {
+  patterns.insert<ONNXMatMulOpLowering>(typeConverter, ctx, enableTiling, tile_id);
 }
 
 } // namespace onnx_mlir

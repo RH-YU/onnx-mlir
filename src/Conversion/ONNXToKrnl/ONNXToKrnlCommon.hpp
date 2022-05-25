@@ -262,7 +262,7 @@ void populateLoweringONNXHardmaxOpPattern(
 void populateLoweringONNXLRNOpPattern(
     RewritePatternSet &, TypeConverter &, MLIRContext *);
 void populateLoweringONNXMatMulOpPattern(
-    RewritePatternSet &, TypeConverter &, MLIRContext *, bool enableTiling);
+    RewritePatternSet &, TypeConverter &, MLIRContext *, bool enableTiling, int *);
 void populateLoweringONNXRandomNormalOpPattern(
     RewritePatternSet &, TypeConverter &, MLIRContext *);
 void populateLoweringONNXRandomNormalLikeOpPattern(
@@ -280,7 +280,7 @@ void populateLoweringONNXCategoryMapperOpPattern(
 
 // `NN` directory methods:
 void populateLoweringONNXConvOpPattern(
-    RewritePatternSet &, TypeConverter &, MLIRContext *);
+    RewritePatternSet &, TypeConverter &, MLIRContext *, int *);
 void populateLoweringONNXNormalizationOpPattern(
     RewritePatternSet &, TypeConverter &, MLIRContext *);
 void populateLoweringONNXPoolingOpPattern(

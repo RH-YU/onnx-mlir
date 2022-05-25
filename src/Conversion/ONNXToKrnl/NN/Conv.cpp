@@ -36,10 +36,10 @@ Value insertPadsMemRefI64(
   }
 
 struct ONNXConvOpLowering : public ConversionPattern {
-  ONNXConvOpLowering(TypeConverter &typeConverter, MLIRContext *ctx)
+  ONNXConvOpLowering(TypeConverter &typeConverter, MLIRContext *ctx, int* tile_id)
       : ConversionPattern(
-            typeConverter, mlir::ONNXConvOp::getOperationName(), 1, ctx) {}
-
+            typeConverter, mlir::ONNXConvOp::getOperationName(), 1, ctx),tile_id(tile_id) {}
+  int* tile_id;
   void convUnoptimized(ConversionPatternRewriter &rewriter,
       IndexExprScope *topScope, ONNXConvOp &convOp,
       ONNXConvOpAdaptor &operandAdaptor, ONNXConvOpShapeHelper &shapeHelper,
@@ -222,7 +222,7 @@ struct ONNXConvOpLowering : public ConversionPattern {
   
   void replaceConvAsCIMConvOp(Operation *op,
       ArrayRef<Value> operands, Value alloc,
-      ConversionPatternRewriter &rewriter, Location loc, ONNXConvOpShapeHelper &shapeHelper
+      ConversionPatternRewriter &rewriter, Location loc, ONNXConvOpShapeHelper &shapeHelper, int* tile_id
       ) const { 
       
       ONNXMatMulOpAdaptor operandAdaptor(operands);
@@ -243,7 +243,9 @@ struct ONNXConvOpLowering : public ConversionPattern {
       // auto padding = emitConstantOp(rewriter, loc, elementType, padding_);
       auto stride_row = emitConstantOp(rewriter, loc, elementType, shapeHelper.strides[0]);
       auto stride_col = emitConstantOp(rewriter, loc, elementType, shapeHelper.strides[1]);
-      auto cimTileID = emitConstantOp(rewriter, loc, elementType, 0);
+      // auto cimTileID = emitConstantOp(rewriter, loc, elementType, 0);
+      auto cimTileID = emitConstantOp(rewriter, loc, elementType, *tile_id);
+      *tile_id = *tile_id + 1;
       // uint8_t cimTileID = 0;
       rewriter.create<KrnlCIMConvOp>(loc, cimTileID, stride_row, stride_col, padding_, matA, matB, matC);    
   }
@@ -269,7 +271,7 @@ struct ONNXConvOpLowering : public ConversionPattern {
     //convUnoptimized(rewriter, shapeHelper.scope, convOp, operandAdaptor,
     //              shapeHelper, memRefType, alloc);
 
-    replaceConvAsCIMConvOp(op, operands, alloc, rewriter, loc, shapeHelper);    
+    replaceConvAsCIMConvOp(op, operands, alloc, rewriter, loc, shapeHelper, tile_id);    
 
     rewriter.replaceOp(op, alloc);
     return success();
@@ -277,8 +279,8 @@ struct ONNXConvOpLowering : public ConversionPattern {
 };
 
 void populateLoweringONNXConvOpPattern(RewritePatternSet &patterns,
-    TypeConverter &typeConverter, MLIRContext *ctx) {
-  patterns.insert<ONNXConvOpLowering>(typeConverter, ctx);
+    TypeConverter &typeConverter, MLIRContext *ctx, int* tile_id) {
+  patterns.insert<ONNXConvOpLowering>(typeConverter, ctx, tile_id);
 }
 
 } // namespace onnx_mlir

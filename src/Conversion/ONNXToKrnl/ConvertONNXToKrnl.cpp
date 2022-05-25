@@ -47,7 +47,7 @@ public:
 };
 
 void populateONNXToKrnlConversionPattern(RewritePatternSet &patterns,
-    TypeConverter &typeConverter, MLIRContext *ctx, bool enableTiling) {
+    TypeConverter &typeConverter, MLIRContext *ctx, bool enableTiling, int *tile_id) {
   // Type conversion for function signatures.
   // Call MLIR FuncOp signature conversion when result type is
   // a ranked tensor.
@@ -69,7 +69,7 @@ void populateONNXToKrnlConversionPattern(RewritePatternSet &patterns,
   populateLoweringONNXReductionOpPattern(patterns, typeConverter, ctx);
   populateLoweringONNXSoftmaxOpPattern(patterns, typeConverter, ctx);
   populateLoweringONNXTopKOpPattern(patterns, typeConverter, ctx);
-  populateLoweringONNXMatMulOpPattern(patterns, typeConverter, ctx, enableTiling);
+  populateLoweringONNXMatMulOpPattern(patterns, typeConverter, ctx, enableTiling, tile_id);
   // populateLoweringONNXMatMulOpPattern(patterns, typeConverter, ctx);
 
 
@@ -111,7 +111,7 @@ void populateONNXToKrnlConversionPattern(RewritePatternSet &patterns,
   populateLoweringONNXOneHotOpPattern(patterns, typeConverter, ctx);
   populateLoweringONNXCompressOpPattern(patterns, typeConverter, ctx);
   // Neural network
-  populateLoweringONNXConvOpPattern(patterns, typeConverter, ctx);
+  populateLoweringONNXConvOpPattern(patterns, typeConverter, ctx, tile_id);
   populateLoweringONNXNormalizationOpPattern(patterns, typeConverter, ctx);
   populateLoweringONNXPoolingOpPattern(patterns, typeConverter, ctx);
   // Recurrent neural network
@@ -269,9 +269,10 @@ void FrontendToKrnlLoweringPass::runOnOperation() {
         [](Type type) { return type.isa<TensorType>(); });
   });
 
+  int tile_id = 0;
   // Define patterns.
   populateONNXToKrnlConversionPattern(
-      patterns, krnlTypeConverter, &getContext(), enableTiling);
+      patterns, krnlTypeConverter, &getContext(), enableTiling, &tile_id);
 
   // Rewrite patterns for accelerators.
   for (auto *accel : onnx_mlir::accel::Accelerator::getAccelerators()) {
