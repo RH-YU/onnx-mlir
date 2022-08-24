@@ -83,7 +83,7 @@ def ONNXAcoshOp:ONNX_Op<"Acosh",
 
 def ONNXAddOp:ONNX_Op<"Add",
   [NoSideEffect, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
-  let hasCanonicalizer = 1;
+  // let hasCanonicalizer = 1;
   let summary = "ONNX Add operation";
   let description = [{
   "Performs element-wise binary addition (with Numpy-style broadcasting support)."

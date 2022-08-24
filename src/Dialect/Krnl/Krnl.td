@@ -1182,7 +1182,7 @@ def KrnlCIMConvOp : Op<Krnl_Dialect,"cimconv"> {
 
     ```mlir
       // C(m, n) = A(m, k) * B(k, n)
-      cim.gemm(%tileId, %A, %C) : i32, memref<?x?xi32>, memref<?x?xi32>
+      krnl.CIMConv(%tileId, %A, %B, %C) : i32, memref<?x?xi32>, memref<?x?xi32>, memref<?x?xi32>
     ```
   }];
 

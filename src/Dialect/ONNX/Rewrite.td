@@ -192,14 +192,14 @@ def GemmTransB : NativeCodeCall<"IntegerAttr::get($_builder.getIntegerType(64, /
 //===----------------------------------------------------------------------===//
 
 // onnx.add(onnx.matmul(%X, %Y), %Z) = onnx.Gemm(%X, %Y, %Z)
-def MulAddToGemmOptPattern : Pat<(ONNXAddOp (ONNXMatMulOp:$res $m1, $m2), $m3),
-                                 (ONNXGemmOp $m1, $m2, $m3, (GemmAlpha), (GemmBeta), (GemmTransA), (GemmTransB)),
-                                 [(HasOneUse $res), (HasRankOf<2> $m1), (HasRankOf<2> $m2)]>;
+// def MulAddToGemmOptPattern : Pat<(ONNXAddOp (ONNXMatMulOp:$res $m1, $m2), $m3),
+//                                  (ONNXGemmOp $m1, $m2, $m3, (GemmAlpha), (GemmBeta), (GemmTransA), (GemmTransB)),
+//                                  [(HasOneUse $res), (HasRankOf<2> $m1), (HasRankOf<2> $m2)]>;
 
-// onnx.add(onnx.Gemm(%X, %Y, None), %Z) = onnx.Gemm(%X, %Y, %Z)
-def FuseGemmFollowedByAddition : Pat<(ONNXAddOp (ONNXGemmOp:$res $m1, $m2, $none, $alpha, $beta, $transA, $transB), $bias),
-                                     (ONNXGemmOp $m1, $m2, $bias, $alpha, $beta, $transA, $transB),
-                                     [(HasOneUse $res), (HasNoneType $none)]>;
+// // onnx.add(onnx.Gemm(%X, %Y, None), %Z) = onnx.Gemm(%X, %Y, %Z)
+// def FuseGemmFollowedByAddition : Pat<(ONNXAddOp (ONNXGemmOp:$res $m1, $m2, $none, $alpha, $beta, $transA, $transB), $bias),
+//                                      (ONNXGemmOp $m1, $m2, $bias, $alpha, $beta, $transA, $transB),
+//                                      [(HasOneUse $res), (HasNoneType $none)]>;
 
 //===----------------------------------------------------------------------===//
 // This is to fuse the composition: 'Add o Conv' into 'Conv' if the other input
@@ -217,51 +217,51 @@ def FuseGemmFollowedByAddition : Pat<(ONNXAddOp (ONNXGemmOp:$res $m1, $m2, $none
 // The shape of 'constant' must be compatible with that of 'b'
 //===----------------------------------------------------------------------===//
 
-def NormalizeAddPattern: Pat<
-  (ONNXAddOp $x, $y),
-  (ONNXAddOp $y, $x),
-  [(IsFromONNXConstantOp $x), (IsNotFromONNXConstantOp $y)]
->;
+// def NormalizeAddPattern: Pat<
+//   (ONNXAddOp $x, $y),
+//   (ONNXAddOp $y, $x),
+//   [(IsFromONNXConstantOp $x), (IsNotFromONNXConstantOp $y)]
+// >;
 
-def FuseAddConvNullBiasPattern: Pat<
-  (ONNXAddOp:$res
-    (ONNXConvOp
-       $x, $w, $b, $auto_pad, $dilation, $group, $kernel_shape, $pads, $strides),
-    (ONNXConstantOp:$y $_, $denseAttr, $_, $_, $_, $_, $_, $_)),
-  (ONNXConvOp
-     $x, $w,
-     // new_b
-     (ONNXSqueezeV11Op
-        $y,
-        (createArrayAttrOfOneToRankOf $y)),
-     // unchanged operands and attributes.
-     $auto_pad, $dilation, $group, $kernel_shape, $pads, $strides),
-  [(HasNoneType $b),
-   (AttributeIsNotNull:$denseAttr),
-   (AllDimsFromAxisToEndAre<1, 1>:$y),
-   (RankXMinusRankYIs<1> $res, $y)]
->;
+// def FuseAddConvNullBiasPattern: Pat<
+//   (ONNXAddOp:$res
+//     (ONNXConvOp
+//        $x, $w, $b, $auto_pad, $dilation, $group, $kernel_shape, $pads, $strides),
+//     (ONNXConstantOp:$y $_, $denseAttr, $_, $_, $_, $_, $_, $_)),
+//   (ONNXConvOp
+//      $x, $w,
+//      // new_b
+//      (ONNXSqueezeV11Op
+//         $y,
+//         (createArrayAttrOfOneToRankOf $y)),
+//      // unchanged operands and attributes.
+//      $auto_pad, $dilation, $group, $kernel_shape, $pads, $strides),
+//   [(HasNoneType $b),
+//    (AttributeIsNotNull:$denseAttr),
+//    (AllDimsFromAxisToEndAre<1, 1>:$y),
+//    (RankXMinusRankYIs<1> $res, $y)]
+// >;
 
-def FuseAddConvPattern: Pat<
-  (ONNXAddOp:$res
-    (ONNXConvOp
-       $x, $w, $b, $auto_pad, $dilation, $group, $kernel_shape, $pads, $strides),
-    (ONNXConstantOp:$y $_, $denseAttr, $_, $_, $_, $_, $_, $_)),
-  (ONNXConvOp
-     $x, $w,
-     // new_b
-     (ONNXAddOp
-        $b,
-        (ONNXSqueezeV11Op
-           $y,
-           (createArrayAttrOfOneToRankOf $y))),
-     // unchanged operands and attributes.
-     $auto_pad, $dilation, $group, $kernel_shape, $pads, $strides),
-  [(NotNoneType $b),
-   (AttributeIsNotNull:$denseAttr),
-   (AllDimsFromAxisToEndAre<1, 1>:$y),
-   (RankXMinusRankYIs<1> $res, $y)]
->;
+// def FuseAddConvPattern: Pat<
+//   (ONNXAddOp:$res
+//     (ONNXConvOp
+//        $x, $w, $b, $auto_pad, $dilation, $group, $kernel_shape, $pads, $strides),
+//     (ONNXConstantOp:$y $_, $denseAttr, $_, $_, $_, $_, $_, $_)),
+//   (ONNXConvOp
+//      $x, $w,
+//      // new_b
+//      (ONNXAddOp
+//         $b,
+//         (ONNXSqueezeV11Op
+//            $y,
+//            (createArrayAttrOfOneToRankOf $y))),
+//      // unchanged operands and attributes.
+//      $auto_pad, $dilation, $group, $kernel_shape, $pads, $strides),
+//   [(NotNoneType $b),
+//    (AttributeIsNotNull:$denseAttr),
+//    (AllDimsFromAxisToEndAre<1, 1>:$y),
+//    (RankXMinusRankYIs<1> $res, $y)]
+// >;
 
 //===----------------------------------------------------------------------===//
 // Canonicalization for ONNXIdentityOp

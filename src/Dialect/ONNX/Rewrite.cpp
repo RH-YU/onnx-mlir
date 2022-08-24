@@ -104,14 +104,14 @@ bool areProducedByTransposeOp(ValueRange values) {
 
 /// Register optimization patterns as "canonicalization" patterns
 /// on the ONNXMatMultOp.
-void ONNXAddOp::getCanonicalizationPatterns(
-    RewritePatternSet &results, MLIRContext *context) {
-  results.insert<NormalizeAddPattern>(context);
-  results.insert<MulAddToGemmOptPattern>(context);
-  results.insert<FuseGemmFollowedByAddition>(context);
-  results.insert<FuseAddConvPattern>(context);
-  results.insert<FuseAddConvNullBiasPattern>(context);
-}
+// void ONNXAddOp::getCanonicalizationPatterns(
+//     RewritePatternSet &results, MLIRContext *context) {
+//   results.insert<NormalizeAddPattern>(context);
+//   results.insert<MulAddToGemmOptPattern>(context);
+//   results.insert<FuseGemmFollowedByAddition>(context);
+//   results.insert<FuseAddConvPattern>(context);
+//   results.insert<FuseAddConvNullBiasPattern>(context);
+// }
 
 /// on the ONNXIdentityOp.
 void ONNXIdentityOp::getCanonicalizationPatterns(
